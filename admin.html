@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Bot Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-8">
+
+<div class="container mx-auto px-4">
+  <h1 class="text-3xl font-bold text-center mb-8 text-gray-800">Telegram Bot Admin</h1>
+
+  <!-- Global Settings Card -->
+  <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+    <h2 class="text-xl font-semibold mb-4 text-gray-700">Global Settings</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block font-medium text-gray-600 mb-1">Telegram Group ID:</label>
+        <input type="text" id="chatId" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400">
+      </div>
+      <div>
+        <label class="block font-medium text-gray-600 mb-1">Message Interval (seconds):</label>
+        <input type="number" id="intervalSeconds" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400" min="1">
+      </div>
+    </div>
+  </div>
+
+  <!-- Bots Container -->
+  <div id="botsContainer" class="space-y-6"></div>
+
+  <!-- Save Button -->
+  <div class="text-center mt-6">
+    <button onclick="saveConfig()" class="bg-black text-white px-6 py-3 rounded-lg shadow hover:bg-gray-800 transition">💾 Save Changes</button>
+   <button onclick="runBotNow()" class="bg-yellow-500 text-white px-6 py-3 rounded-lg shadow hover:bg-yellow-600 transition w-full md:w-auto">▶️ Run Bot Now</button>
+
+</div>
+</div>
+
+<script>
+const JSONBIN_ID = "6985e32643b1c97be96a17a2";
+const JSONBIN_API_KEY = "$2a$10$yti1izYQ7PKY9IhwxrQiuuIk8TZDdxM6nzYFnduMOvJtKIdyRhBB.";
+const JSONBIN_HEADERS = {
+  "X-Master-Key": JSONBIN_API_KEY,
+  "Content-Type": "application/json"
+};
+
+let config = null;
+
+// Fetch config
+async function fetchConfig() {
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, { headers: JSONBIN_HEADERS });
+    const data = await res.json();
+    config = data.record;
+
+    document.getElementById('chatId').value = config.chatId;
+    document.getElementById('intervalSeconds').value = config.intervalSeconds;
+
+    renderBots();
+  } catch(err) {
+    alert("❌ Failed to fetch config from JSONBin");
+    console.error(err);
+  }
+}
+
+// Render bots UI
+function renderBots() {
+  const container = document.getElementById('botsContainer');
+  container.innerHTML = '';
+
+  config.bots.forEach((bot, botIndex) => {
+    const card = document.createElement('div');
+    card.className = "bg-white shadow-md rounded-lg p-6";
+
+    // Bot Header
+    const header = document.createElement('div');
+    header.className = "flex justify-between items-center mb-4";
+    header.innerHTML = `
+      <h3 class="text-lg font-semibold text-gray-700">${bot.name}</h3>
+      <div class="flex items-center space-x-2">
+        <label class="flex items-center space-x-1">
+          <span class="text-gray-600 text-sm">Enabled</span>
+          <input type="checkbox" ${bot.enabled ? 'checked' : ''} onchange="toggleBot(${botIndex}, this.checked)" class="form-checkbox h-5 w-5 text-yellow-400">
+        </label>
+        <button onclick="deleteBot(${botIndex})" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition text-sm">Delete Bot</button>
+      </div>
+    `;
+    card.appendChild(header);
+
+    // Name Input
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = bot.name;
+    nameInput.placeholder = "Bot Name";
+    nameInput.className = "w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400";
+    nameInput.oninput = e => updateBot(botIndex, 'name', e.target.value);
+    card.appendChild(nameInput);
+
+    // Token Input
+    const tokenInput = document.createElement('input');
+    tokenInput.type = 'text';
+    tokenInput.value = bot.token;
+    tokenInput.placeholder = "Bot Token";
+    tokenInput.className = "w-full px-3 py-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-yellow-400";
+    tokenInput.oninput = e => updateBot(botIndex, 'token', e.target.value);
+    card.appendChild(tokenInput);
+
+    // Messages Section
+    const messagesDiv = document.createElement('div');
+    messagesDiv.className = "space-y-2";
+    bot.messages.forEach((msg, msgIndex) => {
+      const msgContainer = document.createElement('div');
+      msgContainer.className = "flex space-x-2 items-center";
+
+      const textarea = document.createElement('textarea');
+      textarea.value = msg;
+      textarea.className = "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400";
+      textarea.oninput = e => updateMessage(botIndex, msgIndex, e.target.value);
+      msgContainer.appendChild(textarea);
+
+      const delBtn = document.createElement('button');
+      delBtn.className = "bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition text-sm";
+      delBtn.textContent = "Delete";
+      delBtn.onclick = () => deleteMessage(botIndex, msgIndex);
+      msgContainer.appendChild(delBtn);
+
+      messagesDiv.appendChild(msgContainer);
+    });
+
+    // Add Message Button
+    const addBtn = document.createElement('button');
+    addBtn.className = "bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition mt-2";
+    addBtn.textContent = "+ Add Message";
+    addBtn.onclick = () => addMessage(botIndex);
+    messagesDiv.appendChild(addBtn);
+
+    card.appendChild(messagesDiv);
+
+    container.appendChild(card);
+  });
+
+  // Add new bot button
+  const addBotBtn = document.createElement('button');
+  addBotBtn.className = "bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 transition w-full mt-4";
+  addBotBtn.textContent = "+ Add New Bot";
+  addBotBtn.onclick = addNewBot;
+  container.appendChild(addBotBtn);
+}
+
+// Update functions
+function toggleBot(botIndex, enabled) { config.bots[botIndex].enabled = enabled; }
+function updateBot(botIndex, field, value) { config.bots[botIndex][field] = value; }
+function updateMessage(botIndex, msgIndex, value) { config.bots[botIndex].messages[msgIndex] = value; }
+function deleteMessage(botIndex, msgIndex) { config.bots[botIndex].messages.splice(msgIndex, 1); renderBots(); }
+function addMessage(botIndex) { config.bots[botIndex].messages.push(''); renderBots(); }
+function deleteBot(botIndex) { config.bots.splice(botIndex, 1); renderBots(); }
+function addNewBot() {
+  const id = "bot" + (config.bots.length + 1);
+  config.bots.push({ id, name: "New Bot", token: "", enabled: true, messages: [""] });
+  renderBots();
+}
+
+// Save config
+async function saveConfig() {
+  config.chatId = document.getElementById('chatId').value;
+  config.intervalSeconds = Number(document.getElementById('intervalSeconds').value);
+
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+      method: 'PUT',
+      headers: JSONBIN_HEADERS,
+      body: JSON.stringify(config)
+    });
+
+    if (res.ok) {
+      alert('✅ Configuration saved to JSONBin');
+      fetchConfig(); // refresh UI
+    } else {
+      alert('❌ Failed to save config');
+    }
+  } catch(err) {
+    console.error(err);
+    alert('❌ Error saving config');
+  }
+}
+
+fetchConfig();
+</script>
+
+<script>
+async function runBotNow() {
+  try {
+    const res = await fetch("http://localhost:3000/run-bot", { method: "POST" }); // replace with your server URL
+    const data = await res.json();
+
+    if (data.success) {
+      alert("✅ Bot started sending messages! It will stop automatically after sending all messages.");
+    } else {
+      alert("❌ Failed to run bot: " + (data.error || "Unknown error"));
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ Error running bot");
+  }
+}
+</script>
+
+</body>
+</html>
