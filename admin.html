@@ -191,7 +191,7 @@ fetchConfig();
 <script>
 async function runBotNow() {
   try {
-    const res = await fetch("http://localhost:3000/run-bot", { method: "POST" }); // replace with your server URL
+    const res = await fetch("https://telegrambot-0zia.onrender.com//run-bot", { method: "POST" }); // replace with your server URL
     const data = await res.json();
 
     if (data.success) {
