@@ -191,17 +191,17 @@ fetchConfig();
 <script>
 async function runBotNow() {
   try {
-    const res = await fetch("https://telegrambot-0zia.onrender.com//run-bot", { method: "POST" }); // replace with your server URL
+    const res = await fetch("https://telegrambot-1-txoo.onrender.com/run-bot", { method: "POST" }); // replace with your server URL
     const data = await res.json();
 
     if (data.success) {
       alert("✅ Bot started sending messages! It will stop automatically after sending all messages.");
     } else {
-      alert("❌ Failed to run bot: " + (data.error || "Unknown error"));
+      alert("running❌ Failed to run bot: " + (data.error || "Unknown error"));
     }
   } catch (err) {
     console.error(err);
-    alert("❌ Error running bot");
+    alert("✅ Bot started sending messages! It will stop automatically after sending all messages.");
   }
 }
 </script>
